@@ -4,7 +4,7 @@ I have taken the SQL scripts and followed the configuration steps from this webs
 
 How to use this code?
 
-Open the folder "CustomerApi" in Anypoint Studio by importing the project from file system option.
+Download and  open the folder "CustomerApi" in Anypoint Studio by importing the project from file system option.
 
 Run the project and it will be exposed on port 8081
 
