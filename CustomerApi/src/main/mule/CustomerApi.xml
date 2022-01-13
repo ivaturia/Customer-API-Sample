@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:spring="http://www.mulesoft.org/schema/mule/spring" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/spring http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="28ac5957-58d2-4b44-9ef8-2ece94c49c09" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<spring:config name="Spring_Config" doc:name="Spring Config" doc:id="62990904-ef79-4073-8e54-7f72762fcad2" files="springbeans.xml" />
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="b7a0a00a-6a56-46d5-b526-a9ab78b24c59" >
+		<db:generic-connection url="jdbc:derby:memory:demodb" driverClassName="org.apache.derby.jdbc.EmbeddedDriver" />
+	</db:config>
+	<flow name="retrieveCustomers" doc:id="f3fdb1c5-1613-48e3-958c-9e95ecf96b64" >
+		<http:listener doc:name="Listener" doc:id="5f7d9942-31b3-4c9f-895f-13756045f41a" config-ref="HTTP_Listener_config" path="/customer" allowedMethods="GET"/>
+		<db:select doc:name="Select" doc:id="4137a48e-8e13-4b8f-83d0-7e5ce7fbd220" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from customerdb.customers]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="d8e5798a-f93c-42cb-ab24-f81d9a3b4b3e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="bda6970f-17cb-44ab-895a-e16ffb9fb789" >
+				<logger level="INFO" doc:name="Logger" doc:id="8d403543-a462-4dab-8d16-acaa83c17972" />
+				<set-payload value="#[error.description]" doc:name="Set Payload" doc:id="b2c0f684-569b-46ff-a3ed-a16d8619c7bd" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="retrieveCustomerByCustomerId" doc:id="6379448c-6000-43d7-a13b-f2a15fa24c86" >
+		<http:listener doc:name="Listener" doc:id="d504c6bb-1fc9-4587-9706-fc1b621c3a58" config-ref="HTTP_Listener_config" path="/customer/{id}" allowedMethods="GET"/>
+		<logger level="INFO" doc:name="Logger" doc:id="3324be4c-8cce-427e-9a09-9d15350f74e7" />
+		<db:select doc:name="Select" doc:id="e7737e4e-e463-419a-8a12-0f93a3a7d2ff" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from customerdb.customers where customerId = :customerId]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{'customerId': message.attributes.uriParams.id}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="f1db992a-a0b5-4d6f-95f9-0e725eb8ec1c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="0295b41f-8487-4cc9-8761-7ce69e54e144" >
+				<logger level="INFO" doc:name="Logger" doc:id="c61aac13-e5a2-4546-b0ec-1a4799b1d356" />
+				<set-payload value="#[error.description]" doc:name="Set Payload" doc:id="de17ff6a-3c1f-4cbc-8de9-d37909002aee" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="updateCustomer" doc:id="bc318c06-86ad-4da1-85a8-756bb9d06cff" >
+		<http:listener doc:name="Listener" doc:id="651346d9-2493-4339-80eb-e57ec738d2a3" config-ref="HTTP_Listener_config" path="/customer/{id}" allowedMethods="PUT"/>
+		<logger level="INFO" doc:name="Logger" doc:id="9da54392-2ba9-4763-803d-fabf91e0cf35" />
+		<db:update doc:name="Update" doc:id="6510b9e3-9bda-450e-b1ed-c5035cc965ee" config-ref="Database_Config">
+			<db:sql ><![CDATA[Update customerdb.customers SET ADDRESSLINE1 = :addressline where customerId = :customerId]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{'customerId': message.attributes.uriParams.id,
+	'addressline': payload.addressline
+}]]]></db:input-parameters>
+		</db:update>
+		<ee:transform doc:name="Transform Message" doc:id="9fd56bee-20a4-4e21-a4f7-73f05f9ded8f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="92f83241-d955-4c9c-8440-9821030b7746">
+				<logger level="INFO" doc:name="Logger" doc:id="b0fb9c27-91bd-406e-bf96-76cb92d09b84" />
+				<set-payload value="#[error.description]" doc:name="Set Payload" doc:id="32203d2d-3238-4925-92eb-47992132dcfa" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+</mule>
